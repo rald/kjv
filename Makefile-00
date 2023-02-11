@@ -1,0 +1,5 @@
+bibly: maim.c strutil.h util.h common.h info.h token.h cite.h lexer.h parser.h kjv.csv kjv.inf
+	gcc main.c -o bibly -g -Wall -Wextra
+
+clean:
+	rm bibly
