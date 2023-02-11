@@ -124,6 +124,8 @@ int main() {
 
 						printf("[from: %s] [reply-with: %s] [where: %s] [reply-to: %s] %s", user, command, where, target, message);
 
+
+
 						if(strncmp(message,".kjv",4)==0) {
 
 							lex(&tokens,&ntokens,message+4);
@@ -134,7 +136,18 @@ int main() {
 							Tokens_Free(&tokens,&ntokens);
 							Cites_Free(&cites,&ncites);		
 
-						}				
+						}	else if(strncmp(message,".skjv",4)==0) {
+							size_t page=0;
+							char text[STRING_MAX];
+
+							if(sscanf(message,".skjv %zu %[^\n]\n",&page,text)==2) {
+
+								search(conn,channel,page,text);
+
+							}			
+							
+  					}
+
 						
 						//raw("%s %s :%s", command, target, message); // If you enable this the IRCd will get its "*** Looking up your hostname..." messages thrown back at it but it works...
 					}

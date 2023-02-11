@@ -6,6 +6,9 @@
 #include <string.h>
 #include <sys/types.h>
 
+#define IRC_IMPLEMENTATION
+#include "irc.h"
+
 #define INFO_IMPLEMENTATION
 #include "info.h"
 
@@ -17,8 +20,7 @@ size_t getbnum(Info **infos,size_t ninfos,char *bname);
 
 char *getbname(Info **infos,size_t ninfos,size_t bnum);
 
-void search(char *text);
-
+void search(int conn,char *chn,size_t page,char *text);
 
 
 #ifdef UTIL_IMPLEMENTATION
@@ -54,7 +56,7 @@ char *getbname(Info **infos,size_t ninfos,size_t bnum) {
 
 
 
-void search(char *text) {
+void search(int conn,char *chn,size_t page,char *text) {
 
 	trim(text);
 
@@ -66,9 +68,9 @@ void search(char *text) {
 		size_t llen=0;
 		ssize_t rlen=0;
 
-		bool first=true;
-
-		printf("\n");
+		size_t p=1;
+		size_t c=0;
+		size_t n=0;
 
 		while((rlen=getline(&line,&llen,fp)) && rlen>0) {
 			char **tokens=NULL;	
@@ -89,8 +91,11 @@ void search(char *text) {
 			sprintf(passage,"%s %zu:%zu %s",bname,cnum,vnum,vers);
 
 			if(strcasestr(passage,text)) {
-				if(first) first=false; else printf("\n");
-				printf("%s %zu:%zu -> %s\n",bname,cnum,vnum,vers);
+
+				n++;
+					
+				if(p==page) privmsg(conn,chn,"(page %zu # %zu) %s %zu:%zu -> %s\n",p,n,bname,cnum,vnum,vers);
+				c++; if(c>=4) { c=0; p++; }
 			}
 
 			tokfree(&tokens,&ntokens);
@@ -101,7 +106,7 @@ void search(char *text) {
 			rlen=0;
 		}
 
-		printf("\n");
+		raw(conn,"PRIVMSG %s :found %zu in %zu %s\r\n",chn,n,p,p<2?"page":"pages");
 
 		free(line);
 		line=NULL;

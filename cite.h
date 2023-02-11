@@ -125,26 +125,7 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
         (hcnum==scnum && hvnum>=svnum && hvnum<=evnum) ||
         (ecnum==0 && evnum==0 && hcnum==scnum && hvnum==svnum))
     ) {
-
-    	char p[STRING_MAX];
-        
-      sprintf(p,"%s %d:%d -> %s",hbname,(int)hcnum,(int)hvnum,htext);
-
-			char b[256];
-
-			size_t i,j;
-
-			j=0;
-			while(p[j]) {
-				i=0;
-				while(i<255 && p[j]) {
-					b[i]=p[j];
-					i++;
-					j++;
-				}
-				b[i]='\0';				
-    		raw(conn,"PRIVMSG %s :%s\r\n",chn,trim(b));
-			}
+				privmsg(conn,chn,"%s %zu:%zu -> %s\r\n",hbname,hcnum,hvnum,htext);
     }
     
     tokfree(&tokens,&ntokens);
