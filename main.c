@@ -15,6 +15,7 @@
 #include <time.h>
 
 
+
 #define IRC_IMPLEMENTATION 
 #include "irc.h"
 
@@ -30,11 +31,15 @@
 #define CITE_IMPLEMENTATION 
 #include "cite.h"
 
+
+
 char *nick = "siesto";
 char *channel = "#pantasya";
 char *host = "irc.dal.net";
 char *port = "6667";
 char *pass = "paanoanggagawinko"; 
+
+
 
 int conn;
 char sbuf[512];
