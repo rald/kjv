@@ -133,7 +133,7 @@ int main() {
 						size_t page=0;
 						char text[STRING_MAX];
 
-						if(sscanf(message,".kjv %zu %[^\n]\n",&page,text)==2) {
+						if(sscanf(message,".kjv page %zu %[^\n]\n",&page,text)==2) {
 						
 							lex(&tokens,&ntokens,text);
 
@@ -156,7 +156,7 @@ int main() {
 							Cites_Free(&cites,&ncites);
 									
 									
-						} else if(sscanf(message,".skjv %zu %[^\n]\n",&page,text)==2) {
+						} else if(sscanf(message,".skjv page %zu %[^\n]\n",&page,text)==2) {
 							search(conn,channel,page,text);	  					} else if(sscanf(message,".skjv %[^\n]\n",text)==1) {
 							search(conn,channel,1,text);							}
 						
