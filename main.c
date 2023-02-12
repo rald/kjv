@@ -75,7 +75,7 @@ int main() {
 	conn = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	connect(conn, res->ai_addr, res->ai_addrlen);
 	
-	raw(conn,"PASS %s\r\n", pass);
+	if(pass) raw(conn,"PASS %s\r\n", pass);
 	raw(conn,"NICK %s\r\n", nick);
 	raw(conn,"USER %s %s %s :%s\r\n", nick, nick, nick, nick);
 	
