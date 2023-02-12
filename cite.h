@@ -40,9 +40,9 @@ Cite *Cite_New(size_t bnum,size_t scnum,size_t ecnum,size_t svnum,size_t evnum);
 void Cites_Free(Cite ***cites,size_t *ncites);
 void Cite_Append(Cite ***cites,size_t *ncites,Cite *cite);
 
-void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite);
+void Cite_Print(int conn,char *chn,size_t page,Info **infos,size_t ninfos,Cite *cite);
 
-void Cites_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite **cites,size_t ncites);
+void Cites_Print(int conn,char *chn,size_t page,Info **infos,size_t ninfos,Cite **cites,size_t ncites);
 
 
 
@@ -92,7 +92,7 @@ void Cite_Append(Cite ***cites,size_t *ncites,Cite *cite) {  *cites=realloc(*cit
 
 
 
-void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
+void Cite_Print(int conn,char *chn,size_t page,Info **infos,size_t ninfos,Cite *cite) {
 
   FILE *fp=fopen("kjv.csv","r");
 
@@ -106,7 +106,9 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
   size_t svnum=cite->svnum;
   size_t evnum=cite->evnum?cite->evnum:svnum;
 
+	size_t p=1;
 	size_t c=0;
+	size_t n=0;
 
   while(c<4 && (rlen=getline(&line,&llen,fp)) && rlen>0) {
 
@@ -127,9 +129,12 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
         (hcnum==scnum && hvnum>=svnum && hvnum<=evnum) ||
         (ecnum==0 && evnum==0 && hcnum==scnum && hvnum==svnum))
     ) {
-			privmsg(conn,chn,"%s %zu:%zu -> %s\r\n",hbname,hcnum,hvnum,htext);
 
-			c++;
+			n++;
+    
+			if(p==page) privmsg(conn,chn,"(page %zu # %zu) %s %zu:%zu -> %s\r\n",p,n,hbname,hcnum,hvnum,htext);
+
+			c++; if(c>=4) { c=0; p++; }
 
     }
     
@@ -140,6 +145,10 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
 		llen=0;
 		rlen=0;
   }
+
+		size_t pages=(size_t)ceil((double)n/4);
+
+		raw(conn,"PRIVMSG %s :found %zu in %zu %s\r\n",chn,n,pages,pages<2?"page":"pages");
 
 	free(line);
 	line=NULL;
@@ -152,9 +161,9 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
 
 
 
-void Cites_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite **cites,size_t ncites) {
+void Cites_Print(int conn,char *chn,size_t page,Info **infos,size_t ninfos,Cite **cites,size_t ncites) {
   for(size_t i=0;i<ncites;i++) {
-    Cite_Print(conn,chn,infos,ninfos,cites[i]);
+    Cite_Print(conn,chn,page,infos,ninfos,cites[i]);
   }
 }
 

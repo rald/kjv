@@ -133,15 +133,28 @@ int main() {
 						size_t page=0;
 						char text[STRING_MAX];
 
+						if(sscanf(message,".kjv %zu %[^\n]\n",&page,text)==2) {
+						
+							lex(&tokens,&ntokens,text);
 
-						if(strncmp(message,".kjv",4)==0) {
-							lex(&tokens,&ntokens,message+4);
 							parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
 
-							Cites_Print(conn,channel,infos,ninfos,cites,ncites);
+							Cites_Print(conn,channel,page,infos,ninfos,cites,ncites);
 
 							Tokens_Free(&tokens,&ntokens);
 							Cites_Free(&cites,&ncites);
+
+						} else if(sscanf(message,".kjv %[^\n]\n",text)==1) {
+						
+							lex(&tokens,&ntokens,text);
+
+							parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
+
+							Cites_Print(conn,channel,1,infos,ninfos,cites,ncites);
+
+							Tokens_Free(&tokens,&ntokens);
+							Cites_Free(&cites,&ncites);
+									
 									
 						} else if(sscanf(message,".skjv %zu %[^\n]\n",&page,text)==2) {
 							search(conn,channel,page,text);	  					} else if(sscanf(message,".skjv %[^\n]\n",text)==1) {
