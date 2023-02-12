@@ -117,6 +117,12 @@ int main() {
 					
 					if (!strncmp(command, "001", 3) && channel != NULL) {
 						raw(conn,"JOIN %s\r\n", channel);
+					} else if (!strncmp(command, "433", 3)) {
+					
+						raw(conn,"NICK %s%04X\r\n", nick,rand()%0xFFFF);
+					
+						raw(conn,"PRIVMSG %s: NicServ@services.dal.net ghost %s %s\r\n",channel,nick,pass);						
+						
 					} else if (!strncmp(command, "PRIVMSG", 7) || !strncmp(command, "NOTICE", 6)) {
 						if (where == NULL || message == NULL) continue;
 						if ((sep = strchr(user, '!')) != NULL) user[sep - user] = '\0';
@@ -124,29 +130,21 @@ int main() {
 
 						printf("[from: %s] [reply-with: %s] [where: %s] [reply-to: %s] %s", user, command, where, target, message);
 
+						size_t page=0;
+						char text[STRING_MAX];
 
 
 						if(strncmp(message,".kjv",4)==0) {
-
 							lex(&tokens,&ntokens,message+4);
 							parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
 
 							Cites_Print(conn,channel,infos,ninfos,cites,ncites);
 
 							Tokens_Free(&tokens,&ntokens);
-							Cites_Free(&cites,&ncites);		
-
-						}	else if(strncmp(message,".skjv",4)==0) {
-							size_t page=0;
-							char text[STRING_MAX];
-
-							if(sscanf(message,".skjv %zu %[^\n]\n",&page,text)==2) {
-
-								search(conn,channel,page,text);
-
-							}			
-							
-  					}
+							Cites_Free(&cites,&ncites);
+									
+						} else if(sscanf(message,".skjv %zu %[^\n]\n",&page,text)==2) {
+							search(conn,channel,page,text);	  					}
 
 						
 						//raw("%s %s :%s", command, target, message); // If you enable this the IRCd will get its "*** Looking up your hostname..." messages thrown back at it but it works...

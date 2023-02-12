@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 
 #include <string.h>
+#include <math.h>
 #include <sys/types.h>
 
 #define IRC_IMPLEMENTATION
@@ -106,7 +107,9 @@ void search(int conn,char *chn,size_t page,char *text) {
 			rlen=0;
 		}
 
-		raw(conn,"PRIVMSG %s :found %zu in %zu %s\r\n",chn,n,p,p<2?"page":"pages");
+		size_t pages=(size_t)ceil((double)n/4);
+
+		raw(conn,"PRIVMSG %s :found %zu in %zu %s\r\n",chn,n,pages,pages<2?"page":"pages");
 
 		free(line);
 		line=NULL;

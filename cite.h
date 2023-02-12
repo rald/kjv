@@ -106,7 +106,9 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
   size_t svnum=cite->svnum;
   size_t evnum=cite->evnum?cite->evnum:svnum;
 
-  while((rlen=getline(&line,&llen,fp)) && rlen>0) {
+	size_t c=0;
+
+  while(c<4 && (rlen=getline(&line,&llen,fp)) && rlen>0) {
 
 		rmnl(line);
 
@@ -125,7 +127,10 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
         (hcnum==scnum && hvnum>=svnum && hvnum<=evnum) ||
         (ecnum==0 && evnum==0 && hcnum==scnum && hvnum==svnum))
     ) {
-				privmsg(conn,chn,"%s %zu:%zu -> %s\r\n",hbname,hcnum,hvnum,htext);
+			privmsg(conn,chn,"%s %zu:%zu -> %s\r\n",hbname,hcnum,hvnum,htext);
+
+			c++;
+
     }
     
     tokfree(&tokens,&ntokens);
@@ -148,7 +153,7 @@ void Cite_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite *cite) {
 
 
 void Cites_Print(int conn,char *chn,Info **infos,size_t ninfos,Cite **cites,size_t ncites) {
-  for(size_t i=0;i<(ncites<=4?ncites:4);i++) {
+  for(size_t i=0;i<ncites;i++) {
     Cite_Print(conn,chn,infos,ninfos,cites[i]);
   }
 }
