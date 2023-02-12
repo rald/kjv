@@ -144,7 +144,8 @@ int main() {
 							Cites_Free(&cites,&ncites);
 									
 						} else if(sscanf(message,".skjv %zu %[^\n]\n",&page,text)==2) {
-							search(conn,channel,page,text);	  					}
+							search(conn,channel,page,text);	  					} else if(sscanf(message,".skjv %[^\n]\n",text)==1) {
+							search(conn,channel,1,text);							}
 						
 						//raw("%s %s :%s", command, target, message); // If you enable this the IRCd will get its "*** Looking up your hostname..." messages thrown back at it but it works...
 
