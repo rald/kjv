@@ -78,8 +78,11 @@ int main() {
 	connect(conn, res->ai_addr, res->ai_addrlen);
 */
 
-	conn = Irc_Connect(host,port);
-	
+	conn=Irc_Connect(host,port);
+  if (conn<0) {
+  	DieWithUserMessage("Irc_Connect() failed", "unable to connect");
+  }
+   	
 	if(pass) raw(conn,"PASS %s\r\n", pass);
 	raw(conn,"NICK %s\r\n", nick);
 	raw(conn,"USER %s %s %s :%s\r\n", nick, nick, nick, nick);
