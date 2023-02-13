@@ -62,18 +62,23 @@ int main() {
 
 	int i, j, l, sl, o = -1, start, wordcount;
 	char buf[513];
-	struct addrinfo hints, *res;
+
+//	struct addrinfo hints, *res;
 
 	srand(time(NULL));
 
 	Info_Load(&infos,&ninfos,"kjv.inf");
-	
+
+/*	
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	getaddrinfo(host, port, &hints, &res);
 	conn = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	connect(conn, res->ai_addr, res->ai_addrlen);
+*/
+
+	conn = Irc_Connect(host,port);
 	
 	if(pass) raw(conn,"PASS %s\r\n", pass);
 	raw(conn,"NICK %s\r\n", nick);
