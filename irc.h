@@ -86,7 +86,7 @@ void raw(int conn,char *fmt, ...) {
 
 	printf("<< %s", p);
 	write(conn,p,strlen(p));
-	sleep(2);
+	sleep(5);
 }
 
 
