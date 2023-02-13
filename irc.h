@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <errno.h>
+
+
 
 #include "common.h"
 
@@ -20,8 +23,15 @@ void DieWithSystemMessage(const char *msg);
 
 int Irc_Connect(const char *host, const char *service);
 
+int readline( int fd, char *bufptr, size_t len );
+
+int Irc_Send(int sockfd, const char *data, int datalen);
+
+
 
 #ifdef IRC_IMPLEMENTATION
+
+
 
 void DieWithUserMessage(const char *msg, const char *detail) {
    fputs(msg, stderr);
@@ -31,10 +41,14 @@ void DieWithUserMessage(const char *msg, const char *detail) {
    exit(1);
 }
 
+
+
 void DieWithSystemMessage(const char *msg) {
    perror(msg);
    exit(1);
 }
+
+
 
 int Irc_Connect(const char *host, const char *service) {
    
@@ -76,6 +90,80 @@ int Irc_Connect(const char *host, const char *service) {
 
 
 
+int Irc_Send(int sockfd, const char *data, int datalen) {
+    int total_bytes_sent = 0;
+    int n;
+
+    while (total_bytes_sent < datalen) {
+        n = send(sockfd, data + total_bytes_sent, datalen - total_bytes_sent, 0);
+        if (n < 0) {
+            perror("Irc_Send(): send");
+            return n;
+        }
+        total_bytes_sent += n;
+    }
+
+    return total_bytes_sent;
+}
+
+
+
+/* readline - read a '\n' terminated line from socket fd 
+              into buffer bufptr of size len. The line in the
+              buffer is terminated with '\0'.
+              It returns -1 in case of error or if
+              the capacity of the buffer is exceeded.
+	      It returns 0 if EOF is encountered before reading '\n'.
+ */
+int readline( int fd, char *bufptr, size_t len )
+{
+  /* Note that this function is very tricky.  It uses the
+     static variables bp, cnt, and b to establish a local buffer.
+     The recv call requests large chunks of data (the size of the buffer).
+     Then if the recv call reads more than one line, the overflow
+     remains in the buffer and it is made available to the next call
+     to readline. 
+     Notice also that this routine reads up to '\n' and overwrites
+     it with '\0'. Thus if the line is really terminated with
+     "\r\n", the '\r' will remain unchanged.
+  */
+  char *bufx = bufptr;
+  static char *bp;
+  static int cnt = 0;
+  static char b[ STRING_MAX ];
+  char c;
+  
+  while ( --len > 0 )
+    {
+      if ( --cnt <= 0 )
+	{
+	  cnt = recv( fd, b, sizeof( b ), 0 );
+	  if ( cnt < 0 )
+	    {
+	      if ( errno == EINTR )
+		{
+		  len++;		/* the while will decrement */
+		  continue;
+		}
+	      return -1;
+	    }
+	  if ( cnt == 0 )
+	    return 0;
+	  bp = b;
+	}
+      c = *bp++;
+      *bufptr++ = c;
+      if ( c == '\n' )
+	{
+	  *bufptr = '\0';
+	  return bufptr - bufx;
+	}
+    }
+  errno = EMSGSIZE;
+  return -1;
+}
+
+
 void raw(int conn,char *fmt, ...) {
 	char p[STRING_MAX];
 
@@ -85,8 +173,7 @@ void raw(int conn,char *fmt, ...) {
 	va_end(ap);
 
 	printf("<< %s", p);
-	write(conn,p,strlen(p));
-	sleep(5);
+	Irc_Send(conn,p,strlen(p));
 }
 
 
@@ -113,8 +200,8 @@ void privmsg(int conn,char *dst,char *fmt, ...) {
 		}
 		b[i]='\0';				
 		sprintf(c,"PRIVMSG %s :%s\r\n",dst,b);
-		write(conn,c,strlen(c));
-		sleep(2);
+		Irc_Send(conn,c,strlen(c));
+		sleep(5);
 	}
 
 }
@@ -126,3 +213,5 @@ void privmsg(int conn,char *dst,char *fmt, ...) {
 
 
 #endif
+
+

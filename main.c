@@ -31,6 +31,8 @@
 #define CITE_IMPLEMENTATION 
 #include "cite.h"
 
+#define INITIAL_BUF_LEN 512
+
 
 
 char *nick = "siesto";
@@ -41,9 +43,7 @@ char *pass = "paanoanggagawinko";
 
 
 
-int conn;
-char sbuf[512];
-
+int sock;
 
 
 static Info **infos=NULL;
@@ -57,11 +57,17 @@ static size_t ncites=0;
 
 
 
-int main() {
-	char *user, *command, *where, *message, *sep, *target;
 
-	int i, j, l, sl, o = -1, start, wordcount;
-	char buf[513];
+
+int main(void) {
+	char *user, *server, *command, *where, *message, *sep, *target;
+
+	int sl, wordcount;
+
+	char buf[512];
+	size_t buflen=512;
+
+	char *msg;
 
 //	struct addrinfo hints, *res;
 
@@ -78,104 +84,103 @@ int main() {
 	connect(conn, res->ai_addr, res->ai_addrlen);
 */
 
-	conn=Irc_Connect(host,port);
-  if (conn<0) {
+	sock=Irc_Connect(host,port);
+  if (sock<0) {
   	DieWithUserMessage("Irc_Connect() failed", "unable to connect");
   }
+
+
    	
-	if(pass) raw(conn,"PASS %s\r\n", pass);
-	raw(conn,"NICK %s\r\n", nick);
-	raw(conn,"USER %s %s %s :%s\r\n", nick, nick, nick, nick);
-	
-	while ((sl = read(conn, sbuf, 512))) {
-		for (i = 0; i < sl; i++) {
-			o++;
-			buf[o] = sbuf[i];
-			if ((i > 0 && sbuf[i] == '\n' && sbuf[i - 1] == '\r') || o == 512) {
-				buf[o + 1] = '\0';
-				l = o;
-				o = -1;
-				
-				printf(">> %s", buf);
-				
-				if (!strncmp(buf, "PING", 4)) {
-					buf[1] = 'O';
-					raw(conn,buf);
-				} else if (buf[0] == ':') {
-					wordcount = 0;
-					user = command = where = message = NULL;
-					for (j = 1; j < l; j++) {
-						if (buf[j] == ' ') {
-							buf[j] = '\0';
-							wordcount++;
-							switch(wordcount) {
-								case 1: user = buf + 1; break;
-								case 2: command = buf + start; break;
-								case 3: where = buf + start; break;
-							}
-							if (j == l - 1) continue;
-							start = j + 1;
-						} else if (buf[j] == ':' && wordcount == 3) {
-							if (j < l - 1) message = buf + j + 1;
-							break;
-						}
-					}
-					
-					if (wordcount < 2) continue;
-					
-					if (!strncmp(command, "001", 3) && channel != NULL) {
-						raw(conn,"JOIN %s\r\n", channel);
-					} else if (!strncmp(command, "433", 3)) {
-					
-						raw(conn,"NICK %s%04X\r\n", nick,rand()%0xFFFF);
-					
-						raw(conn,"PRIVMSG %s: NicServ@services.dal.net ghost %s %s\r\n",channel,nick,pass);						
-						
-					} else if (!strncmp(command, "PRIVMSG", 7) || !strncmp(command, "NOTICE", 6)) {
-						if (where == NULL || message == NULL) continue;
-						if ((sep = strchr(user, '!')) != NULL) user[sep - user] = '\0';
-						if (where[0] == '#' || where[0] == '&' || where[0] == '+' || where[0] == '!') target = where; else target = user;
+	if(pass) raw(sock,"PASS %s\r\n", pass);
+	raw(sock,"NICK %s\r\n", nick);
+	raw(sock,"USER %s %s %s :%s\r\n", nick, nick, nick, nick);
 
-						printf("[from: %s] [reply-with: %s] [where: %s] [reply-to: %s] %s", user, command, where, target, message);
-
-						size_t page=0;
-						char text[STRING_MAX];
-
-						if(sscanf(message,".kjv page %zu %[^\n]\n",&page,text)==2) {
-						
-							lex(&tokens,&ntokens,text);
-
-							parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
-
-							Cites_Print(conn,channel,page,infos,ninfos,cites,ncites);
-
-							Tokens_Free(&tokens,&ntokens);
-							Cites_Free(&cites,&ncites);
-
-						} else if(sscanf(message,".kjv %[^\n]\n",text)==1) {
-						
-							lex(&tokens,&ntokens,text);
-
-							parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
-
-							Cites_Print(conn,channel,1,infos,ninfos,cites,ncites);
-
-							Tokens_Free(&tokens,&ntokens);
-							Cites_Free(&cites,&ncites);
-									
-									
-						} else if(sscanf(message,".skjv page %zu %[^\n]\n",&page,text)==2) {
-							search(conn,channel,page,text);	  					} else if(sscanf(message,".skjv %[^\n]\n",text)==1) {
-							search(conn,channel,1,text);							}
-						
-						//raw("%s %s :%s", command, target, message); // If you enable this the IRCd will get its "*** Looking up your hostname..." messages thrown back at it but it works...
-
+	while ((sl=readline(sock,buf,buflen))>=0) {
+		printf(">> %s", buf);
+		
+		if (!strncmp(buf, "PING", 4)) {
+			buf[1] = 'O';
+			raw(sock,"%s",buf);
+		} else if (buf[0] == ':') {
+			wordcount = 0;
+			user = server = command = where = message = NULL;
+			
+			user=buf+1; 
+			wordcount++;
+			if((command=skip(user,' '))) {
+				wordcount++; 
+				if((where=skip(command,' '))) {
+					wordcount++;
+					if((message=skip(where,' '))) {
+						msg=message[0]==':'?message+1:message;
+						wordcount++;
 					}
 				}
+			}
+
+/*
+			printf("usr: %s\n",user);	
+			printf("cmd: %s\n",command);	
+			printf("whr: %s\n",where);	
+			printf("msg: %s\n\n",message);	
+*/
+
+					
+			if (wordcount < 2) continue;
+			
+			if (!strncmp(command, "001", 3)) {
+				raw(sock,"JOIN %s\r\n", channel);
+			} else if (!strncmp(command, "433", 3)) {			
+			
+				raw(sock,"NICK %s%04X\r\n", nick,rand()%0xFFFF);
+			
+				raw(sock,"PRIVMSG %s: NicServ@services.dal.net ghost %s %s\r\n",channel,nick,pass);										
+			} else if (!strncmp(command, "PRIVMSG", 7) || !strncmp(command, "NOTICE", 6)) {
+
+				if (where == NULL || message == NULL) continue;
+
+				if ((sep = strchr(user, '!')) != NULL) user[sep - user] = '\0';
+
+				if (where[0] == '#' || where[0] == '&' || where[0] == '+' || where[0] == '!') target = where; else target = user;
+
+				printf("[from: %s] [reply-with: %s] [where: %s] [reply-to: %s] %s", user, command, where, target, message);
+
+				size_t page=0;
+				char text[STRING_MAX];
+
+				if(sscanf(msg,".kjv page %zu %[^\n]\n",&page,text)==2) {
 				
+					lex(&tokens,&ntokens,text);
+
+					parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
+
+					Cites_Print(sock,channel,page,infos,ninfos,cites,ncites);
+
+					Tokens_Free(&tokens,&ntokens);
+					Cites_Free(&cites,&ncites);
+
+				} else if(sscanf(msg,".kjv %[^\n]\n",text)==1) {
+				
+					lex(&tokens,&ntokens,text);
+
+					parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
+
+					Cites_Print(sock,channel,1,infos,ninfos,cites,ncites);
+
+					Tokens_Free(&tokens,&ntokens);
+					Cites_Free(&cites,&ncites);
+														
+				} else if(sscanf(msg,".skjv page %zu %[^\n]\n",&page,text)==2) {
+					search(sock,channel,page,text);	  					} else if(sscanf(msg,".skjv %[^\n]\n",text)==1) {
+					search(sock,channel,1,text);								}
+					
+				//raw("%s %s :%s", command, target, message); // If you enable this the IRCd will get its "*** Looking up your hostname..." messages thrown back at it but it works...
+
 			}
 		}
-		
+
+		buf[0]='\0';
+
 	}
 
 	Infos_Free(&infos,&ninfos);
@@ -183,3 +188,5 @@ int main() {
 	return 0;
 	
 }
+
+
