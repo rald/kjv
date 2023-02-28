@@ -36,10 +36,10 @@
 
 
 char *nick = "siesto";
-char *channel = "#pantasya";
-char *host = "irc.dal.net";
+char *channel = "#manila";
+char *host = "irc.undernet.org";
 char *port = "6667";
-char *pass = "paanoanggagawinko"; 
+char *pass = NULL; 
 
 
 
