@@ -13,9 +13,9 @@
 
 void raw(int conn,char *fmt, ...);
 
-void privmsg(int conn,char *dst,char *fmt, ...);
+void privmsg(int conn,const char *dst,const char *fmt, ...);
 
-
+void notice(int conn,const char *dst,const char *fmt, ...);
 
 void DieWithUserMessage(const char *msg, const char *detail);
 
@@ -25,8 +25,9 @@ int Irc_Connect(const char *host, const char *service);
 
 int readline( int fd, char *bufptr, size_t len );
 
-int Irc_Send(int sockfd, const char *data, int datalen);
+int Irc_Send(int sockfd, char *data, int datalen);
 
+int Irc_Recv(int sockfd, char *data, int datalen);
 
 
 #ifdef IRC_IMPLEMENTATION
@@ -90,7 +91,7 @@ int Irc_Connect(const char *host, const char *service) {
 
 
 
-int Irc_Send(int sockfd, const char *data, int datalen) {
+int Irc_Send(int sockfd, char *data, int datalen) {
     int total_bytes_sent = 0;
     int n;
 
@@ -106,6 +107,13 @@ int Irc_Send(int sockfd, const char *data, int datalen) {
     return total_bytes_sent;
 }
 
+
+
+int Irc_Recv(int sockfd, char *data, int datalen) {
+	int ret=readline(sockfd,data,datalen);
+	if(ret>0) printf(">> %s",data);
+	return ret;
+}
 
 
 /* readline - read a '\n' terminated line from socket fd 
@@ -133,35 +141,31 @@ int readline( int fd, char *bufptr, size_t len )
   static char b[ STRING_MAX ];
   char c;
   
-  while ( --len > 0 )
-    {
-      if ( --cnt <= 0 )
-	{
-	  cnt = recv( fd, b, sizeof( b ), 0 );
-	  if ( cnt < 0 )
-	    {
-	      if ( errno == EINTR )
-		{
-		  len++;		/* the while will decrement */
-		  continue;
-		}
-	      return -1;
-	    }
-	  if ( cnt == 0 )
-	    return 0;
-	  bp = b;
-	}
-      c = *bp++;
-      *bufptr++ = c;
-      if ( c == '\n' )
-	{
-	  *bufptr = '\0';
-	  return bufptr - bufx;
-	}
-    }
+  while ( --len > 0 ) {
+    if ( --cnt <= 0 ) {
+  	  cnt = recv( fd, b, sizeof( b ), 0 );
+  	  if ( cnt < 0 ) {
+  	    if ( errno == EINTR ) {
+  		    len++;		/* the while will decrement */
+  		    continue;
+  		  }
+  	    return -1;
+  	  }
+  	  if ( cnt == 0 )
+  	    return 0;
+  	  bp = b;
+	  }
+    c = *bp++;
+    *bufptr++ = c;
+    if ( c == '\n' ) {
+	    *bufptr = '\0';
+	    return bufptr - bufx;
+	  }
+  }
   errno = EMSGSIZE;
   return -1;
 }
+
 
 
 void raw(int conn,char *fmt, ...) {
@@ -178,7 +182,7 @@ void raw(int conn,char *fmt, ...) {
 
 
 
-void privmsg(int conn,char *dst,char *fmt, ...) {
+void privmsg(int conn,const char *dst,const char *fmt, ...) {
 	char p[STRING_MAX];
 	char b[256],c[STRING_MAX];
 	size_t i,j;
@@ -187,8 +191,6 @@ void privmsg(int conn,char *dst,char *fmt, ...) {
 	va_start(ap, fmt);
 	vsnprintf(p, STRING_MAX, fmt, ap);
 	va_end(ap);
-
-	printf("<< %s", p);
 
 	j=0;
 	while(p[j]) {
@@ -200,12 +202,37 @@ void privmsg(int conn,char *dst,char *fmt, ...) {
 		}
 		b[i]='\0';				
 		sprintf(c,"PRIVMSG %s :%s\r\n",dst,b);
+		printf("<< %s", c);
 		Irc_Send(conn,c,strlen(c));
-		sleep(5);
 	}
-
 }
 
+
+
+void notice(int conn,const char *dst,const char *fmt, ...) {
+	char p[STRING_MAX];
+	char b[256],c[STRING_MAX];
+	size_t i,j;
+
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(p, STRING_MAX, fmt, ap);
+	va_end(ap);
+
+	j=0;
+	while(p[j]) {
+		i=0;
+		while(i<255 && p[j]) {
+			b[i]=p[j];
+			i++;
+			j++;
+		}
+		b[i]='\0';				
+		sprintf(c,"NOTICE %s :%s\r\n",dst,b);
+		printf("<< %s", c);
+		Irc_Send(conn,c,strlen(c));
+	}
+}
 
 
 #endif

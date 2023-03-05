@@ -1,6 +1,8 @@
 #define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdarg.h>
 #include <unistd.h>
 #include <errno.h>
@@ -16,11 +18,22 @@
 
 
 
+#include "common.h"
+
+#define INI_IMPLEMENTATION 
+#include "ini.h"
+
 #define IRC_IMPLEMENTATION 
 #include "irc.h"
 
+#define STRUTIL_IMPLEMENTATION 
+#include "strutil.h"
+
 #define INFO_IMPLEMENTATION 
 #include "info.h"
+
+#define TOKEN_IMPLEMENTATION 
+#include "token.h"
 
 #define LEXER_IMPLEMENTATION 
 #include "lexer.h"
@@ -31,19 +44,27 @@
 #define CITE_IMPLEMENTATION 
 #include "cite.h"
 
-#define INITIAL_BUF_LEN 512
+
+const char *mst = "siesta";
+const char *hst = "irc.undernet.org";
+const char *prt = "6667";
+const char *nck = "siestu";
+const char *chn = "#pantasya";
+const char *pss = NULL;
 
 
 
-char *nick = "siesto";
-char *channel = "#manila";
-char *host = "irc.undernet.org";
-char *port = "6667";
-char *pass = NULL; 
+int sck;
 
+typedef struct IrcMsg IrcMsg;
 
+struct IrcMsg {
+	char *usr;
+	char *cmd;
+	char *par; 
+	char *txt;
+};
 
-int sock;
 
 
 static Info **infos=NULL;
@@ -58,133 +79,150 @@ static size_t ncites=0;
 
 
 
+void parsein(IrcMsg *im) {
+
+	char *msg=strdup(im->txt);
+
+	trim(msg);
+
+	size_t page=0;
+	char text[STRING_MAX];
+
+	if(sscanf(msg,".kjv page %zu %[^\n]\n",&page,text)==2) {
+		lex(&tokens,&ntokens,text);
+		parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
+		Cites_Print(sck,chn,page,infos,ninfos,cites,ncites);
+		Tokens_Free(&tokens,&ntokens);
+		Cites_Free(&cites,&ncites);
+	} else if(sscanf(msg,".kjv %[^\n]\n",text)==1) {
+		lex(&tokens,&ntokens,text);
+		parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
+		Cites_Print(sck,chn,1,infos,ninfos,cites,ncites);
+		Tokens_Free(&tokens,&ntokens);
+		Cites_Free(&cites,&ncites);
+	} else if(sscanf(msg,".skjv page %zu %[^\n]\n",&page,text)==2) {
+		search(sck,chn,page,text);	  					
+	} else if(sscanf(msg,".skjv %[^\n]\n",text)==1) {
+		search(sck,chn,1,text);
+	}
+					
+	free(msg);
+	msg=NULL;
+
+}
+
+
+
+void parsesrv(IrcMsg *im,char *line) {
+	im->cmd=line;
+	im->usr = (char*)hst;
+	if(!im->cmd || !*im->cmd) return; 
+	if(im->cmd[0] == ':') {
+		im->usr = im->cmd + 1;
+		im->cmd = skip(im->usr, ' ');
+		if(!*im->cmd) return;
+		skip(im->usr, '!');
+	}
+	skip(im->cmd, '\r');
+	im->par = skip(im->cmd, ' ');
+	im->txt = skip(im->par, ':');
+	trim(im->par);
+}
+
+
 
 int main(void) {
-	char *user, *server, *command, *where, *message, *sep, *target;
 
-	int sl, wordcount;
+	char line[STRING_MAX];
+	size_t llen=STRING_MAX;
+	ssize_t rlen=0;
 
-	char buf[512];
-	size_t buflen=512;
-
-	char *msg;
-
-//	struct addrinfo hints, *res;
+	IrcMsg im;
 
 	srand(time(NULL));
 
+
 	Info_Load(&infos,&ninfos,"kjv.inf");
 
-/*	
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	getaddrinfo(host, port, &hints, &res);
-	conn = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	connect(conn, res->ai_addr, res->ai_addrlen);
-*/
 
-	sock=Irc_Connect(host,port);
-  if (sock<0) {
+  ini_t *config = ini_load("config.ini");
+
+  const char *val; 
+
+  val = ini_get(config,"default","host");
+
+  hst=val?val:hst;
+
+  val = ini_get(config,"default","port");
+
+  prt=val?val:prt;
+
+  val = ini_get(config,"default","nick");
+
+  nck=val?val:nck;
+
+  val = ini_get(config,"default","password");
+
+  pss=val?val:pss;
+
+  val = ini_get(config,"default","channel");
+
+  chn=val?val:chn;
+
+  val = ini_get(config,"default","master");
+
+  mst=val?val:mst;
+
+
+
+	sck=Irc_Connect(hst,prt);
+
+  if (sck<0) {
   	DieWithUserMessage("Irc_Connect() failed", "unable to connect");
   }
 
+	if(pss) raw(sck,"PASS %s\r\n",pss);
+	raw(sck,"NICK %s\r\n",nck);
+	raw(sck,"USER %s %s %s :%s\r\n",nck,nck,nck,nck);
 
-   	
-	if(pass) raw(sock,"PASS %s\r\n", pass);
-	raw(sock,"NICK %s\r\n", nick);
-	raw(sock,"USER %s %s %s :%s\r\n", nick, nick, nick, nick);
+	while((rlen=Irc_Recv(sck,line,llen))!=-1) { 
 
-	while ((sl=readline(sock,buf,buflen))>=0) {
-		printf(">> %s", buf);
-		
-		if (!strncmp(buf, "PING", 4)) {
-			buf[1] = 'O';
-			raw(sock,"%s",buf);
-		} else if (buf[0] == ':') {
-			wordcount = 0;
-			user = server = command = where = message = NULL;
+		if(rlen>0) {
+
+			im.cmd=NULL;
+			im.usr=NULL;
+			im.par=NULL;
+			im.txt=NULL;
+
+			parsesrv(&im,line);		
+
+	/*
+			printf("cmd: %s\n",im.cmd);
+			printf("usr: %s\n",im.usr);
+			printf("par: %s\n",im.par);
+			printf("txt: %s\n",im.txt);
+	//*/
 			
-			user=buf+1; 
-			wordcount++;
-			if((command=skip(user,' '))) {
-				wordcount++; 
-				if((where=skip(command,' '))) {
-					wordcount++;
-					if((message=skip(where,' '))) {
-						msg=message[0]==':'?message+1:message;
-						wordcount++;
-					}
-				}
+			if(!strcmp(im.cmd,"PING")) {
+				line[1]='O';
+				raw(sck,"PONG :%s\r\n",im.txt);
+			} else if(!strcmp(im.cmd,"001")) {
+				raw(sck,"JOIN %s\r\n",chn);
+			} else if(!strcmp(im.cmd,"PRIVMSG")) {
+				printf("%s <%s> %s\n",im.par,im.usr,im.txt);
+				parsein(&im);				
 			}
 
-/*
-			printf("usr: %s\n",user);	
-			printf("cmd: %s\n",command);	
-			printf("whr: %s\n",where);	
-			printf("msg: %s\n\n",message);	
-*/
-
-					
-			if (wordcount < 2) continue;
-			
-			if (!strncmp(command, "001", 3)) {
-				raw(sock,"JOIN %s\r\n", channel);
-			} else if (!strncmp(command, "433", 3)) {			
-			
-				raw(sock,"NICK %s%04X\r\n", nick,rand()%0xFFFF);
-			
-				raw(sock,"PRIVMSG %s: NicServ@services.dal.net ghost %s %s\r\n",channel,nick,pass);										
-			} else if (!strncmp(command, "PRIVMSG", 7) || !strncmp(command, "NOTICE", 6)) {
-
-				if (where == NULL || message == NULL) continue;
-
-				if ((sep = strchr(user, '!')) != NULL) user[sep - user] = '\0';
-
-				if (where[0] == '#' || where[0] == '&' || where[0] == '+' || where[0] == '!') target = where; else target = user;
-
-				printf("[from: %s] [reply-with: %s] [where: %s] [reply-to: %s] %s", user, command, where, target, message);
-
-				size_t page=0;
-				char text[STRING_MAX];
-
-				if(sscanf(msg,".kjv page %zu %[^\n]\n",&page,text)==2) {
-				
-					lex(&tokens,&ntokens,text);
-
-					parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
-
-					Cites_Print(sock,channel,page,infos,ninfos,cites,ncites);
-
-					Tokens_Free(&tokens,&ntokens);
-					Cites_Free(&cites,&ncites);
-
-				} else if(sscanf(msg,".kjv %[^\n]\n",text)==1) {
-				
-					lex(&tokens,&ntokens,text);
-
-					parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
-
-					Cites_Print(sock,channel,1,infos,ninfos,cites,ncites);
-
-					Tokens_Free(&tokens,&ntokens);
-					Cites_Free(&cites,&ncites);
-														
-				} else if(sscanf(msg,".skjv page %zu %[^\n]\n",&page,text)==2) {
-					search(sock,channel,page,text);	  					} else if(sscanf(msg,".skjv %[^\n]\n",text)==1) {
-					search(sock,channel,1,text);								}
-					
-				//raw("%s %s :%s", command, target, message); // If you enable this the IRCd will get its "*** Looking up your hostname..." messages thrown back at it but it works...
-
-			}
 		}
 
-		buf[0]='\0';
+		line[0]='\0';
+		llen=STRING_MAX;
+		rlen=0;
 
-	}
+  }
 
 	Infos_Free(&infos,&ninfos);
-	
+
 	return 0;
 	
 }
