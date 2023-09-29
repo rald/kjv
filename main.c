@@ -101,11 +101,13 @@ void parsein(IrcMsg *im) {
 		Tokens_Free(&tokens,&ntokens);
 		Cites_Free(&cites,&ncites);
 	} else if(sscanf(msg,".skjv page %zu %[^\n]\n",&page,text)==2) {
-		search(sck,chn,page,text);	  					
+		search(sck,chn,page,text);
 	} else if(sscanf(msg,".skjv %[^\n]\n",text)==1) {
 		search(sck,chn,1,text);
+	} else if(strcasecmp(msg,".pkjv")==0) {
+    pick(sck,chn);
 	}
-					
+
 	free(msg);
 	msg=NULL;
 

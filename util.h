@@ -17,6 +17,8 @@
 #include "strutil.h"
 
 
+double drand();
+
 size_t getbnum(Info **infos,size_t ninfos,char *bname);
 
 char *getbname(Info **infos,size_t ninfos,size_t bnum);
@@ -24,9 +26,14 @@ char *getbname(Info **infos,size_t ninfos,size_t bnum);
 void search(int conn,const char *chn,size_t page,char *text);
 
 
+void pick(int conn,const char *chn);
+
+
 #ifdef UTIL_IMPLEMENTATION
 
-
+double drand() {
+  return rand()/(RAND_MAX+1.0);
+}
 
 size_t getbnum(Info **infos,size_t ninfos,char *bname) {
   if(bname && *bname) {
@@ -37,7 +44,7 @@ size_t getbnum(Info **infos,size_t ninfos,char *bname) {
       for(size_t k=0;k<infos[j]->nbsnames;k++) {
         if(strcasecmp(bname,infos[j]->bsnames[k])==0) {
           return infos[j]->bnum;
-        }      
+        }
       }
     }
   }
@@ -74,7 +81,7 @@ void search(int conn,const char *chn,size_t page,char *text) {
 		size_t n=0;
 
 		while((rlen=getline(&line,&llen,fp)) && rlen>0) {
-			char **tokens=NULL;	
+			char **tokens=NULL;
 		 	size_t ntokens=0;
 
 			rmnl(line);
@@ -94,7 +101,7 @@ void search(int conn,const char *chn,size_t page,char *text) {
 			if(strcasestr(passage,text)) {
 
 				n++;
-					
+
 				if(p==page) privmsg(conn,chn,"(page %zu # %zu) %s %zu:%zu -> %s\n",p,n,bname,cnum,vnum,vers);
 				c++; if(c>=4) { c=0; p++; }
 			}
@@ -120,6 +127,63 @@ void search(int conn,const char *chn,size_t page,char *text) {
 
 	}
 }
+
+
+
+void pick(int conn,const char *chn) {
+
+	FILE *fp=fopen("kjv.csv","r");
+
+	char *line=NULL;
+	size_t llen=0;
+	ssize_t rlen=0;
+
+	char passage[2046];
+
+  size_t n=0;
+
+	while((rlen=getline(&line,&llen,fp))!=-1) {
+
+    n++;
+
+    if(1.0/n>=drand()) {
+      strcpy(passage,line);
+    }
+
+
+		free(line);
+		line=NULL;
+		llen=0;
+		rlen=0;
+	}
+
+	char **tokens=NULL;
+ 	size_t ntokens=0;
+
+	tokenize(&tokens,&ntokens,passage,"|");
+
+	char *bname=tokens[0];
+	size_t cnum=atoi(tokens[1]);
+	size_t vnum=atoi(tokens[2]);
+	char *vers=tokens[3];
+
+	sprintf(passage,"%s %zu:%zu %s",bname,cnum,vnum,vers);
+
+	tokfree(&tokens,&ntokens);
+
+	raw(conn,"PRIVMSG %s :%s\r\n",chn,passage);
+
+	free(line);
+	line=NULL;
+	llen=0;
+	rlen=0;
+
+	fclose(fp);
+
+
+}
+
+
 
 #endif
 
