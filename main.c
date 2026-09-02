@@ -45,11 +45,13 @@
 #include "cite.h"
 
 
-const char *mst = "siesta";
-const char *hst = "irc.undernet.org";
+#define TRIGGER "!"
+
+const char *mst = "fria";
+const char *hst = "irc.libera.chat";
 const char *prt = "6667";
-const char *nck = "siestu";
-const char *chn = "#pantasya";
+const char *nck = "frie";
+const char *chn = "##dob";
 const char *pss = NULL;
 
 
@@ -61,7 +63,7 @@ typedef struct IrcMsg IrcMsg;
 struct IrcMsg {
 	char *usr;
 	char *cmd;
-	char *par; 
+	char *par;
 	char *txt;
 };
 
@@ -88,23 +90,23 @@ void parsein(IrcMsg *im) {
 	size_t page=0;
 	char text[STRING_MAX];
 
-	if(sscanf(msg,".kjv page %zu %[^\n]\n",&page,text)==2) {
+	if(sscanf(msg,TRIGGER "kjv page %zu %[^\n]\n",&page,text)==2) {
 		lex(&tokens,&ntokens,text);
 		parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
 		Cites_Print(sck,chn,page,infos,ninfos,cites,ncites);
 		Tokens_Free(&tokens,&ntokens);
 		Cites_Free(&cites,&ncites);
-	} else if(sscanf(msg,".kjv %[^\n]\n",text)==1) {
+	} else if(sscanf(msg,TRIGGER "kjv %[^\n]\n",text)==1) {
 		lex(&tokens,&ntokens,text);
 		parse(infos,ninfos,tokens,ntokens,&cites,&ncites);
 		Cites_Print(sck,chn,1,infos,ninfos,cites,ncites);
 		Tokens_Free(&tokens,&ntokens);
 		Cites_Free(&cites,&ncites);
-	} else if(sscanf(msg,".skjv page %zu %[^\n]\n",&page,text)==2) {
+	} else if(sscanf(msg,TRIGGER "skjv page %zu %[^\n]\n",&page,text)==2) {
 		search(sck,chn,page,text);
-	} else if(sscanf(msg,".skjv %[^\n]\n",text)==1) {
+	} else if(sscanf(msg,TRIGGER "skjv %[^\n]\n",text)==1) {
 		search(sck,chn,1,text);
-	} else if(strcasecmp(msg,".pkjv")==0) {
+	} else if(strcasecmp(msg,TRIGGER "pkjv")==0) {
     pick(sck,chn);
 	}
 
